@@ -178,6 +178,7 @@ class Slider extends StatefulWidget {
     this.min = 0.0,
     this.max = 1.0,
     this.divisions,
+    this.reverse = false,
     this.label,
     this.activeColor,
     this.inactiveColor,
@@ -230,6 +231,7 @@ class Slider extends StatefulWidget {
     this.min = 0.0,
     this.max = 1.0,
     this.divisions,
+    this.reverse = false,
     this.label,
     this.mouseCursor,
     this.activeColor,
@@ -404,6 +406,14 @@ class Slider extends StatefulWidget {
   ///
   /// If null, the slider is continuous.
   final int? divisions;
+
+  /// The direction of the slider
+  /// Defaults to false.
+  ///
+  /// If this is set to true, the slider will move from right to left
+  ///
+  /// The slider works normally from left to right.
+  final bool reverse;
 
   /// A label to show above the slider when the slider is active and
   /// [SliderThemeData.showValueIndicator] is satisfied.
@@ -974,6 +984,7 @@ class _SliderState extends State<Slider> with TickerProviderStateMixin {
         secondaryTrackValue:
             (widget.secondaryTrackValue != null) ? _convert(widget.secondaryTrackValue!) : null,
         divisions: widget.divisions,
+        reverse: widget.reverse,
         label: widget.label,
         sliderTheme: sliderTheme,
         textScaleFactor: effectiveTextScale,
@@ -1065,6 +1076,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
     required this.value,
     required this.secondaryTrackValue,
     required this.divisions,
+    required this.reverse,
     required this.label,
     required this.sliderTheme,
     required this.textScaleFactor,
@@ -1082,6 +1094,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
   final double value;
   final double? secondaryTrackValue;
   final int? divisions;
+  final bool reverse;
   final String? label;
   final SliderThemeData sliderTheme;
   final double textScaleFactor;
@@ -1101,6 +1114,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
       value: value,
       secondaryTrackValue: secondaryTrackValue,
       divisions: divisions,
+      reverse: reverse,
       label: label,
       sliderTheme: sliderTheme,
       textScaleFactor: textScaleFactor,
@@ -1125,6 +1139,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
       // We should update the `divisions` ahead of `value`, because the `value`
       // setter dependent on the `divisions`.
       ..divisions = divisions
+      ..reverse = reverse
       ..value = value
       ..secondaryTrackValue = secondaryTrackValue
       ..label = label
@@ -1151,6 +1166,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     required double value,
     required double? secondaryTrackValue,
     required int? divisions,
+    required bool reverse,
     required String? label,
     required SliderThemeData sliderTheme,
     required double textScaleFactor,
@@ -1176,12 +1192,17 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
        _value = value,
        _secondaryTrackValue = secondaryTrackValue,
        _divisions = divisions,
+       _reverse = reverse,
        _sliderTheme = sliderTheme,
        _textScaleFactor = textScaleFactor,
        _screenSize = screenSize,
        _onChanged = onChanged,
        _state = state,
        _textDirection = textDirection,
+       _reverseTextDirection = switch (textDirection) {
+         TextDirection.ltr => TextDirection.rtl,
+         TextDirection.rtl => TextDirection.ltr,
+       },
        _hasFocus = hasFocus,
        _hovering = hovering,
        _allowedInteraction = allowedInteraction {
@@ -1337,6 +1358,16 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     markNeedsPaint();
   }
 
+  bool get reverse => _reverse;
+  bool _reverse;
+  set reverse(bool value) {
+    if (value == _reverse) {
+      return;
+    }
+    _reverse = value;
+    markNeedsPaint();
+  }
+
   String? get label => _label;
   String? _label;
   set label(String? value) {
@@ -1402,10 +1433,20 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   TextDirection get textDirection => _textDirection;
   TextDirection _textDirection;
   set textDirection(TextDirection value) {
-    if (value == _textDirection) {
+    if (reverse || value == _textDirection) {
       return;
     }
     _textDirection = value;
+    _updateLabelPainter();
+  }
+
+  TextDirection get reverseTextDirection => _reverseTextDirection;
+  TextDirection _reverseTextDirection;
+  set reverseTextDirection(TextDirection value) {
+    if (value == _reverseTextDirection) {
+      return;
+    }
+    _reverseTextDirection = value;
     _updateLabelPainter();
   }
 
@@ -1508,7 +1549,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     if (label != null) {
       _labelPainter
         ..text = TextSpan(style: _sliderTheme.valueIndicatorTextStyle, text: label)
-        ..textDirection = textDirection
+        ..textDirection = reverse ? reverseTextDirection : textDirection
         ..textScaleFactor = textScaleFactor
         ..layout();
     } else {
@@ -1796,7 +1837,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
       parentBox: this,
       sliderTheme: _sliderTheme.copyWith(trackGap: trackGap),
       enableAnimation: _enableAnimation,
-      textDirection: _textDirection,
+      textDirection: reverse ? _reverseTextDirection : _textDirection,
       thumbCenter: thumbCenter,
       secondaryOffset: secondaryOffset,
       isDiscrete: isDiscrete,
@@ -1813,7 +1854,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
         labelPainter: _labelPainter,
         parentBox: this,
         sliderTheme: _sliderTheme,
-        textDirection: _textDirection,
+        textDirection: reverse ? _reverseTextDirection : _textDirection,
         value: _value,
         textScaleFactor: _textScaleFactor,
         sizeWithOverflow: screenSize.isEmpty ? size : screenSize,
@@ -1842,7 +1883,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
             parentBox: this,
             sliderTheme: _sliderTheme,
             enableAnimation: _enableAnimation,
-            textDirection: _textDirection,
+            textDirection: reverse ? _reverseTextDirection : _textDirection,
             thumbCenter: thumbCenter,
             isEnabled: isInteractive,
           );
@@ -1870,7 +1911,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
               labelPainter: _labelPainter,
               parentBox: this,
               sliderTheme: _sliderTheme,
-              textDirection: _textDirection,
+              textDirection: reverse ? _reverseTextDirection : _textDirection,
               value: _value,
               textScaleFactor: textScaleFactor,
               sizeWithOverflow: screenSize.isEmpty ? size : screenSize,
@@ -1894,7 +1935,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
                 thumbSize: MaterialStatePropertyAll<Size?>(Size(thumbWidth, thumbHeight)),
               )
               : _sliderTheme,
-      textDirection: _textDirection,
+      textDirection: reverse ? _reverseTextDirection : _textDirection,
       value: _value,
       textScaleFactor: textScaleFactor,
       sizeWithOverflow: screenSize.isEmpty ? size : screenSize,
