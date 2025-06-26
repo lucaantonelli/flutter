@@ -190,6 +190,7 @@ class Slider extends StatefulWidget {
     this.autofocus = false,
     this.allowedInteraction,
     this.padding,
+    this.axis = Axis.horizontal,
     @Deprecated(
       'Set this flag to false to opt into the 2024 slider appearance. Defaults to true. '
       'In the future, this flag will default to false. Use SliderThemeData to customize individual properties. '
@@ -241,6 +242,7 @@ class Slider extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.allowedInteraction,
+    this.axis = Axis.horizontal,
     @Deprecated(
       'Set this flag to false to opt into the 2024 slider appearance. Defaults to true. '
       'In the future, this flag will default to false. Use SliderThemeData to customize individual properties. '
@@ -569,6 +571,12 @@ class Slider extends StatefulWidget {
   /// overlay shape, whichever is larger.
   final EdgeInsetsGeometry? padding;
 
+  /// The axis along which the slider is rendered.
+  ///
+  /// Defaults to [Axis.horizontal]. If set to [Axis.vertical], the slider will still be drawn horizontally,
+  /// but the value indicator label will be rotated so that it appears upright when the slider is placed in a RotatedBox.
+  final Axis axis;
+
   /// When true, the [Slider] will use the 2023 Material Design 3 appearance.
   /// Defaults to true.
   ///
@@ -613,6 +621,7 @@ class Slider extends StatefulWidget {
     );
     properties.add(ObjectFlagProperty<FocusNode>.has('focusNode', focusNode));
     properties.add(FlagProperty('autofocus', value: autofocus, ifTrue: 'autofocus'));
+    properties.add(EnumProperty<Axis>('axis', axis));
   }
 }
 
@@ -986,6 +995,7 @@ class _SliderState extends State<Slider> with TickerProviderStateMixin {
         hasFocus: _focused,
         hovering: _hovering,
         allowedInteraction: effectiveAllowedInteraction,
+        axis: widget.axis,
       ),
     );
 
@@ -1077,6 +1087,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
     required this.hasFocus,
     required this.hovering,
     required this.allowedInteraction,
+    required this.axis,
   });
 
   final double value;
@@ -1094,6 +1105,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
   final bool hasFocus;
   final bool hovering;
   final SliderInteraction allowedInteraction;
+  final Axis axis;
 
   @override
   _RenderSlider createRenderObject(BuildContext context) {
@@ -1116,6 +1128,7 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
       hovering: hovering,
       gestureSettings: MediaQuery.gestureSettingsOf(context),
       allowedInteraction: allowedInteraction,
+      axis: axis,
     );
   }
 
@@ -1140,7 +1153,8 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
       ..hasFocus = hasFocus
       ..hovering = hovering
       ..gestureSettings = MediaQuery.gestureSettingsOf(context)
-      ..allowedInteraction = allowedInteraction;
+      ..allowedInteraction = allowedInteraction
+      ..axis = axis;
     // Ticker provider cannot change since there's a 1:1 relationship between
     // the _SliderRenderObjectWidget object and the _SliderState object.
   }
@@ -1166,6 +1180,7 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     required bool hovering,
     required DeviceGestureSettings gestureSettings,
     required SliderInteraction allowedInteraction,
+    required Axis axis,
   }) : assert(value >= 0.0 && value <= 1.0),
        assert(
          secondaryTrackValue == null || (secondaryTrackValue >= 0.0 && secondaryTrackValue <= 1.0),
@@ -1184,7 +1199,8 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
        _textDirection = textDirection,
        _hasFocus = hasFocus,
        _hovering = hovering,
-       _allowedInteraction = allowedInteraction {
+       _allowedInteraction = allowedInteraction,
+       _axis = axis {
     _updateLabelPainter();
     final GestureArenaTeam team = GestureArenaTeam();
     _drag =
@@ -1452,6 +1468,16 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     }
     _allowedInteraction = value;
     markNeedsSemanticsUpdate();
+  }
+
+  Axis get axis => _axis;
+  Axis _axis;
+  set axis(Axis value) {
+    if (_axis == value) {
+      return;
+    }
+    _axis = value;
+    markNeedsPaint();
   }
 
   void _updateForFocus(bool focused) {
@@ -1855,9 +1881,33 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
           shouldAlwaysShowValueIndicator) {
         _state.paintValueIndicator = (PaintingContext context, Offset offset) {
           if (attached && _labelPainter.text != null) {
+            context.canvas.save();
+            Offset adjustedOffset = offset + thumbCenter;
+            if (_axis == Axis.vertical) {
+
+              // Calcola l'offset per centrare verticalmente la label ruotata
+              final double labelWidth = _labelPainter.width;
+
+              context.canvas.save();
+              context.canvas.translate(adjustedOffset.dx, adjustedOffset.dy);
+              context.canvas.rotate(math.pi / 2);
+              context.canvas.translate(-adjustedOffset.dx, -adjustedOffset.dy);
+              final Size indicatorSize = _sliderTheme.thumbShape!
+                  .getPreferredSize(true, isDiscrete);
+              final double indicatorWidth = indicatorSize.width;
+              final double indicatorHeight = indicatorSize.height;
+
+              // Perfezioniamo il centramento: centrato verticalmente, spostato a sinistra del thumb
+              adjustedOffset =
+                  adjustedOffset -
+                  Offset(
+                    indicatorHeight - indicatorWidth * 2 + labelWidth / 2,
+                    indicatorWidth-indicatorHeight,
+                  );
+            }
             _sliderTheme.valueIndicatorShape!.paint(
               context,
-              offset + thumbCenter,
+              adjustedOffset,
               activationAnimation:
                   shouldAlwaysShowValueIndicator
                       ? const AlwaysStoppedAnimation<double>(1)
@@ -1875,6 +1925,9 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
               textScaleFactor: textScaleFactor,
               sizeWithOverflow: screenSize.isEmpty ? size : screenSize,
             );
+            if (_axis == Axis.vertical) {
+              context.canvas.restore();
+            }
           }
         };
       }
