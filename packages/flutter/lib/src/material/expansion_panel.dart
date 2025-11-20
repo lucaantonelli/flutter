@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import 'colors.dart';
 import 'constants.dart';
 import 'expand_icon.dart';
 import 'icon_button.dart';
@@ -82,6 +83,7 @@ class ExpansionPanel {
     this.isExpanded = false,
     this.canTapOnHeader = false,
     this.backgroundColor,
+    this.contentColor = Colors.transparent,
     this.splashColor,
     this.highlightColor,
   });
@@ -130,6 +132,11 @@ class ExpansionPanel {
   ///
   /// Defaults to [ThemeData.cardColor].
   final Color? backgroundColor;
+
+  /// Defines the content color of the panel.
+  ///
+  /// Defaults to [ThemeData.cardColor].
+  final Color contentColor;
 }
 
 /// An expansion panel that allows for radio-like functionality.
@@ -151,6 +158,7 @@ class ExpansionPanelRadio extends ExpansionPanel {
     required super.body,
     super.canTapOnHeader,
     super.backgroundColor,
+    super.contentColor,
     super.splashColor,
     super.highlightColor,
   });
@@ -452,19 +460,22 @@ class _ExpansionPanelListState extends State<ExpansionPanelList> {
           child: Column(
             children: <Widget>[
               header,
-              AnimatedCrossFade(
-                firstChild: const LimitedBox(
-                  maxWidth: 0.0,
-                  child: SizedBox(width: double.infinity, height: 0),
+              ColoredBox(
+                color: child.contentColor,
+                child: AnimatedCrossFade(
+                  firstChild: const LimitedBox(
+                    maxWidth: 0.0,
+                    child: SizedBox(width: double.infinity, height: 0),
+                  ),
+                  secondChild: child.body,
+                  firstCurve: const Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
+                  secondCurve: const Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
+                  sizeCurve: Curves.fastOutSlowIn,
+                  crossFadeState: _isChildExpanded(index)
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  duration: widget.animationDuration,
                 ),
-                secondChild: child.body,
-                firstCurve: const Interval(0.0, 0.6, curve: Curves.fastOutSlowIn),
-                secondCurve: const Interval(0.4, 1.0, curve: Curves.fastOutSlowIn),
-                sizeCurve: Curves.fastOutSlowIn,
-                crossFadeState: _isChildExpanded(index)
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                duration: widget.animationDuration,
               ),
             ],
           ),
