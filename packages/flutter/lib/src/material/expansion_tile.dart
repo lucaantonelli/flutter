@@ -671,7 +671,13 @@ class _ExpansionTileState extends State<ExpansionTile> {
 
     final Widget tile = Padding(
       padding: decoration.padding,
-      child: Column(mainAxisSize: MainAxisSize.min, children: <Widget>[header, body]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          header,
+          Material(child: body),
+        ],
+      ),
     );
 
     final bool isShapeProvided =
@@ -689,7 +695,9 @@ class _ExpansionTileState extends State<ExpansionTile> {
       );
     }
 
-    return DecoratedBox(decoration: decoration, child: tile);
+    return Material(
+      child: DecoratedBox(decoration: decoration, child: tile),
+    );
   }
 
   @override

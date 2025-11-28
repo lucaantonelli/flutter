@@ -55,7 +55,7 @@ void main() {
   const Color headerColor = Colors.black45;
 
   Material getMaterial(WidgetTester tester) {
-    return tester.widget<Material>(
+    return tester.firstWidget<Material>(
       find.descendant(of: find.byType(ExpansionTile), matching: find.byType(Material)),
     );
   }
@@ -1370,7 +1370,6 @@ void main() {
         ),
       ),
     );
-
     expect(getMaterial(tester).clipBehavior, Clip.none);
   });
 
